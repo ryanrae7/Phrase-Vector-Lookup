@@ -54,7 +54,7 @@ app.layout = dbc.Container([ #dbc rows and col where number of columns and rows 
             html.H3("Keyword Analysis"), #H2 indicates sub heading with the following properties
             dcc.Dropdown(
                 id = 'keyword-dropdown',
-                options = [{'label': word, 'value': word} for word in word_freq_df['Word']],
+                options = [{'label': f"{word} ----- {freq}", 'value': word} for word, freq in zip(word_freq_df['Word'], word_freq_df['Frequency'])],
                 multi = True,
                 placeholder = 'Select keywords',
                 value = [],
