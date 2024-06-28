@@ -71,7 +71,7 @@ app.layout = html.Div([  # dbc rows and col where number of columns and rows are
                     color = 'primary',
                     style = {'margin-top': '10px'}
                 ),
-            ], width = {'size': 'auto'},
+            ], width = {'size': '10'},
                 style = {'font-size': '16px'}),
 
             dbc.Col([
