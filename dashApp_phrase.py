@@ -49,6 +49,9 @@ phrases = vectorizer.get_feature_names_out()
 phrase_counts_df = pd.DataFrame({'Phrase': phrases, 'Count': phrase_counts}).sort_values(by = 'Count', ascending = False).reset_index()
 phrase_counts_df = phrase_counts_df.drop(['index'], axis = 1)
 
+words_to_filter = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'I', 'i']
+phrase_counts_df = phrase_counts_df[~phrase_counts_df['Phrase'].isin(words_to_filter)]
+phrase_counts_df = phrase_counts_df.drop(phrase_counts_df[phrase_counts_df['Count'] <= 1].index)
 
 
 #Define the function to count keyword frequencies
@@ -58,28 +61,43 @@ def count_keywords(text, keywords):
 #############################
 
 #initialize app
-app = dash.Dash(__name__, external_stylesheets = [dbc.themes.CYBORG]) 
-app.layout = dbc.Container([ #dbc rows and col where number of columns and rows are determined by how many rows and columns are in the parameters
-    dbc.Row([ #e.g. row(col col col) <-- 3 columns || row (col) <-- 1 column https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/
-        dbc.Col([
-            html.H3("Phrase Analysis"), #H2 indicates sub heading with the following properties
-            dcc.Dropdown(
-                id='keyword-dropdown',
-                options = [{'label': f"{phrase} ----- {freq}", 'value': phrase} for phrase, freq in zip(phrase_counts_df['Phrase'], phrase_counts_df['Count'])],
-                multi=True,
-                placeholder='Select keywords',
-                value=[],
-                style={'width': '100%'}
-            ),
-            dbc.Button(
-                id='submit-button',
-                n_clicks=0,
-                children='Submit',
-                color='primary',
-                style={'margin-top': '10px'}
-            ),
-        ], width='auto'),
-    ], justify='left', style={'margin-top': '20px'}),
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.CYBORG])
+app.layout = html.Div([  # dbc rows and col where number of columns and rows are determined by how many rows and columns are in the parameters
+    dbc.Row(  # e.g. row(col col col) <-- 3 columns || row (col) <-- 1 column https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/
+        [
+            dbc.Col([
+                html.H2("Phrase Analysis", style={'font-size': '20px'}),  # H2 indicates sub heading with the following properties
+                dcc.Dropdown(
+                    id = 'keyword-dropdown',
+                    options = [{'label': f"{phrase} ----- {freq}", 'value': phrase} for phrase, freq in zip(phrase_counts_df['Phrase'], phrase_counts_df['Count'])],
+                    multi = True,
+                    placeholder = 'Select keywords',
+                    value = [],
+                    style = {'width': '100%'}
+                ),
+                dbc.Button(
+                    id = 'submit-button',
+                    n_clicks = 0,
+                    children = 'Submit',
+                    color = 'primary',
+                    style = {'margin-top': '10px'}
+                ),
+            ], width = {'size': 'auto'},
+                style = {'font-size': '16px'}),
+
+            dbc.Col([
+                html.H2("Toggle Stack", style={'font-size': '20px'}),
+                dcc.Checklist(
+                    id = 'toggle-checklist',
+                    options = [
+                        {'label': 'Grouped', 'value': 'group'},
+                    ], value = ['True'],
+                    style = {'font-size': '16px'},
+                )
+            ])
+        ], justify = 'between'
+    ),
+
     dbc.Row([
         dbc.Col([
             dcc.Graph(id='keyword-graph')  # Populate graph based on the dropdown selection
@@ -90,7 +108,8 @@ app.layout = dbc.Container([ #dbc rows and col where number of columns and rows 
 #set up an callback function that updates the output based on our input
 @app.callback(
     Output(component_id = 'keyword-graph', component_property = 'figure'),
-    [Input(component_id = 'submit-button', component_property = 'n_clicks')],
+    [Input(component_id = 'submit-button', component_property = 'n_clicks'),
+     Input(component_id = 'toggle-checklist', component_property = 'value')],
     [dash.dependencies.State('keyword-dropdown', 'value')]
 )
 
@@ -98,7 +117,7 @@ app.layout = dbc.Container([ #dbc rows and col where number of columns and rows 
 #def word_suggestor
 
 #create function that updates figure
-def update_graph(n_clicks, keywords):  
+def update_graph(n_clicks, toggle, keywords):  
     #want it so that for each click, updates using property of n_clicks and changing the keywords input
 
     #consider the case that exist empty string
@@ -117,8 +136,12 @@ def update_graph(n_clicks, keywords):
     keyword_bydate_df = keyword_bydate_df.melt(id_vars = ['Complete Loc Dt'], var_name = 'Keyword', value_name = 'Service Calls')
     keyword_bydate_df = keyword_bydate_df.rename(columns = {'Complete Loc Dt': 'Date'})
 
+
+    #set the barmode based on the toggle value
+    barmode = 'group' if 'group' in toggle else 'stack'
+
     #create the histogram here
-    fig = px.histogram(keyword_bydate_df, x = 'Date', y = 'Service Calls', color = 'Keyword', barmode = 'group', title = 'Phrase Presence Over Time')
+    fig = px.histogram(keyword_bydate_df, x = 'Date', y = 'Service Calls', color = 'Keyword', barmode = barmode, title = 'Phrase Presence Over Time')
     fig.update_xaxes(
         dtick=86400000.0 * 14 , #biweekly
         #tickformat="%b\n%Y",
